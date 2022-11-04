@@ -34,6 +34,7 @@
 #![allow(clippy::multiple_crate_versions)]
 
 mod asymmetric;
+mod attestation;
 mod key_management;
 
 use psa_crypto::ffi::{
@@ -61,7 +62,7 @@ lazy_static! {
     // We do not use "new" directly here because it can fail and we do not want to panic. The
     // automatic selection of authentication/provider is done in `p_init` so that we can return an
     // error if there is a problem with that.
-    static ref PARSEC_BASIC_CLIENT: RwLock<BasicClient> = RwLock::new(BasicClient::new_naked());
+    static ref PARSEC_BASIC_CLIENT: RwLock<BasicClient> = RwLock::new(BasicClient::new_naked().unwrap());
 }
 
 /// Parsec SE Driver structure
@@ -144,3 +145,5 @@ fn client_error_to_psa_status(error: Error) -> psa_status_t {
         }
     }
 }
+
+pub use attestation::parsec_attest_key;

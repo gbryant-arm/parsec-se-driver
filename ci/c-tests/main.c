@@ -14,6 +14,9 @@
 
 #include "psa/crypto.h"
 #include "parsec_se_driver.h"
+#include "parsec_client.h"
+
+#include<stdio.h>
 
 int main()
 {
@@ -29,6 +32,9 @@ int main()
 		0xf3, 0x51, 0x32, 0xc7, 0x02};
 	uint8_t signature[PSA_SIGNATURE_MAX_SIZE] = {0};
 	size_t signature_length = 0;
+
+	uint8_t attestation_token[2048] = {0};
+	size_t attestation_length = 0;
 
 	alg = PSA_ALG_ECDSA(PSA_ALG_SHA_256);
 
@@ -93,6 +99,23 @@ int main()
 		printf("Verifying failed (status = %d)\n", status);
 		return 1;
 	}
+
+	status = parsec_attest_key(
+			key_pair_handle,
+			0,
+			hash,
+			sizeof(hash),
+			attestation_token,
+			2048,
+			&attestation_length);
+	if (status != PSA_SUCCESS) {
+		printf("Attesting key failed (status = %d)\n", status);
+		return 1;
+	}
+
+	FILE *fp;
+	fp = fopen("attestation_token.bin", "wb");
+	fwrite(attestation_token,attestation_length,1,fp);
 
 	status = psa_destroy_key(key_pair_handle);
 	if (status != PSA_SUCCESS) {

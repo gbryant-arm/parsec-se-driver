@@ -8,6 +8,22 @@
 
 set -xeuf -o pipefail
 
+# The clean up procedure is called when the script finished or is interrupted
+cleanup () {
+    echo "Shutdown Parsec and clean up"
+    # Stop Parsec if running
+    pkill -SIGTERM parsec || true
+    # Stop tpm_server if running
+    pkill tpm_server || true
+    # Remove fake mapping and temp files
+    rm -f "NVChip"
+    rm -f "/tmp/parsec.sock"
+
+    if [ -z "$NO_CARGO_CLEAN" ]; then cargo clean; fi
+}
+
+trap cleanup EXIT
+
 # Clippy needs the build to work, the include directory need to be available.
 if [ ! -d "mbedtls" ]
 then
@@ -32,18 +48,21 @@ fi
 # C Tests #
 ###########
 
-cp /tmp/NVChip .
+# cp /tmp/NVChip .
 # Start and configure TPM server
 tpm_server &
 sleep 5
 # Ownership has already been taken with "tpm_pass".
-tpm2_startup -T mssim
+tpm2_startup -c -T mssim
 
 # Create the Parsec socket directory. This must be the default one.
-mkdir /run/parsec
+# mkdir /run/parsec
 
 # Install and run Parsec
-git clone --branch 0.6.0 https://github.com/parallaxsecond/parsec
+if [ ! -d "parsec" ]
+then
+	git clone --branch attested-tls https://github.com/ionut-arm/parsec
+fi
 pushd parsec
 cargo build --features tpm-provider --release
 ./target/release/parsec -c ../ci/config.toml &
@@ -58,11 +77,13 @@ SHARED=1 make
 popd
 
 # Build the driver, clean before to force dynamic linking
-cargo clean
+# cargo clean
 MBEDTLS_INCLUDE_DIR=$(pwd)/mbedtls/include cargo build --release
 
 # Compile and run the C application
-make -C ci/c-tests run MBED_TLS_PATH=$(pwd)/mbedtls
+export MBED_TLS_PATH=$(pwd)/mbedtls
+make -C ci/c-tests clean 
+make -C ci/c-tests run 
 
 # Check that Parsec was called by checking if the service contains the key
 # this is done by checking if the mappings folder is empty.
