@@ -18,6 +18,8 @@ cleanup () {
     # Remove fake mapping and temp files
     rm -f "NVChip"
     rm -f "/tmp/parsec.sock"
+    rm -rf parsec/mappings
+    rm -f ci/c-tests/*psa_its
 
     if [ -z "$NO_CARGO_CLEAN" ]; then cargo clean; fi
 }
@@ -28,10 +30,16 @@ trap cleanup EXIT
 if [ ! -d "mbedtls" ]
 then
 	git clone https://github.com/ARMmbed/mbedtls.git
+
+    # Compile Mbed Crypto for the test application
+    pushd mbedtls
+    git checkout v3.0.0
+    ./scripts/config.py crypto
+    ./scripts/config.py set MBEDTLS_PSA_CRYPTO_SE_C
+    SHARED=1 make
+    popd
 fi
-pushd mbedtls
-git checkout mbedtls-2.27.0
-popd
+
 
 #################
 # Static checks #
@@ -63,17 +71,19 @@ if [ ! -d "parsec" ]
 then
 	git clone --branch attested-tls https://github.com/ionut-arm/parsec
 fi
-pushd parsec
+pushd ./parsec
 cargo build --features tpm-provider --release
-./target/release/parsec -c ../ci/config.toml &
+./target/release/parsec -c ../parsec-se-driver/ci/config.toml &
 sleep 5
 popd
 
-# Compile Mbed Crypto for the test application
-pushd mbedtls
-./scripts/config.py crypto
-./scripts/config.py set MBEDTLS_PSA_CRYPTO_SE_C
-SHARED=1 make
+if [ ! -d "parsec-tool" ]
+then
+	git clone --branch attested-tls https://github.com/ionut-arm/parsec-tool
+fi
+pushd parsec-tool
+cargo build --release
+PARSEC_SERVICE_ENDPOINT=unix:/tmp/parsec.sock ./target/release/parsec-tool create-endorsement > endorsement.json
 popd
 
 # Build the driver, clean before to force dynamic linking
@@ -84,11 +94,3 @@ MBEDTLS_INCLUDE_DIR=$(pwd)/mbedtls/include cargo build --release
 export MBED_TLS_PATH=$(pwd)/mbedtls
 make -C ci/c-tests clean 
 make -C ci/c-tests run 
-
-# Check that Parsec was called by checking if the service contains the key
-# this is done by checking if the mappings folder is empty.
-# Maybe use parsec-tool instead?
-[ "$(ls -A /tmp/mappings)" ]
-
-# Kill Parsec for clean logs
-pkill parsec

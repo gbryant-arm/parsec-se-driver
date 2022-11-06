@@ -23,6 +23,7 @@ pub unsafe extern "C" fn parsec_attest_key(
     _attestation_token_size: usize,
     attestation_token_length: *mut usize,
 ) -> psa_status_t {
+    // Get tokens from service
     let token = match PARSEC_BASIC_CLIENT
         .read()
         .unwrap()
@@ -32,12 +33,14 @@ pub unsafe extern "C" fn parsec_attest_key(
             std::slice::from_raw_parts(challenge, challenge_length).to_vec(),
         ) {
         Ok((key_token, platform_token)) => {
+            // Construct CAB and encode
             let mut encoded_cab = vec![];
             match cbor!({
                 265 => "tag:github.com/parallax-second/key-attestation,2022-11-04",
                 "kat" => &Bytes::new(&key_token[..]),
                 "pat" => &Bytes::new(&platform_token[..]),
             }) {
+                // Serialize CAB
                 Ok(value) => match into_writer(&value, &mut encoded_cab) {
                     Ok(_) => encoded_cab,
                     Err(_) => return PSA_ERROR_COMMUNICATION_FAILURE,

@@ -6,3 +6,4 @@ ci/c-tests/*.psa_its
 ci/c-tests/test-app
 /parsec
 /mbedtls
+/parsec-tool
