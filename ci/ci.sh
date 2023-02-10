@@ -73,7 +73,7 @@ then
 fi
 pushd ./parsec
 cargo build --features tpm-provider --release
-./target/release/parsec -c ../parsec-se-driver/ci/config.toml &
+./target/release/parsec -c ../ci/config.toml &
 sleep 5
 popd
 

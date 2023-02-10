@@ -4,6 +4,6 @@ Cargo.lock
 ci/c-tests/*.o
 ci/c-tests/*.psa_its
 ci/c-tests/test-app
-/parsec
-/mbedtls
-/parsec-tool
+./parsec
+./mbedtls
+./parsec-tool

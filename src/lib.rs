@@ -5,7 +5,6 @@
 
 #![deny(
     nonstandard_style,
-    const_err,
     dead_code,
     improper_ctypes,
     non_shorthand_field_patterns,
@@ -31,7 +30,7 @@
     missing_copy_implementations
 )]
 // This one is hard to avoid.
-#![allow(clippy::multiple_crate_versions)]
+#![allow(clippy::multiple_crate_versions, clippy::uninlined_format_args)]
 
 mod asymmetric;
 mod attestation;

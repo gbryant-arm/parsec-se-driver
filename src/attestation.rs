@@ -2,11 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{client_error_to_psa_status, key_slot_to_key_name, PARSEC_BASIC_CLIENT};
-use ciborium::{cbor, ser::into_writer};
-use psa_crypto::ffi::{
-    psa_key_slot_number_t, psa_status_t, PSA_ERROR_COMMUNICATION_FAILURE, PSA_SUCCESS,
-};
-use serde_bytes::Bytes;
+use psa_crypto::ffi::{psa_key_slot_number_t, psa_status_t, PSA_SUCCESS};
 
 /// Attest a key
 ///
@@ -24,30 +20,12 @@ pub unsafe extern "C" fn parsec_attest_key(
     attestation_token_length: *mut usize,
 ) -> psa_status_t {
     // Get tokens from service
-    let token = match PARSEC_BASIC_CLIENT
-        .read()
-        .unwrap()
-        .certify_and_quote_attestation(
-            key_slot_to_key_name(key_slot),
-            None,
-            std::slice::from_raw_parts(challenge, challenge_length).to_vec(),
-        ) {
-        Ok((key_token, platform_token)) => {
-            // Construct CAB and encode
-            let mut encoded_cab = vec![];
-            match cbor!({
-                265 => "tag:github.com/parallax-second/key-attestation,2022-11-04",
-                "kat" => &Bytes::new(&key_token[..]),
-                "pat" => &Bytes::new(&platform_token[..]),
-            }) {
-                // Serialize CAB
-                Ok(value) => match into_writer(&value, &mut encoded_cab) {
-                    Ok(_) => encoded_cab,
-                    Err(_) => return PSA_ERROR_COMMUNICATION_FAILURE,
-                },
-                Err(_) => return PSA_ERROR_COMMUNICATION_FAILURE,
-            }
-        }
+    let token = match PARSEC_BASIC_CLIENT.read().unwrap().attest_key(
+        key_slot_to_key_name(key_slot),
+        None,
+        std::slice::from_raw_parts(challenge, challenge_length).to_vec(),
+    ) {
+        Ok(token) => token,
         Err(e) => return client_error_to_psa_status(e),
     };
     let slice: &mut [u8] = std::slice::from_raw_parts_mut(attestation_token, token.len());
