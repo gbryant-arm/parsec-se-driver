@@ -13,7 +13,7 @@ documentation = "https://parallaxsecond.github.io/"
 
 [lib]
 name = "parsec_se_driver"
-crate-type = ["staticlib"]
+crate-type = ["staticlib", "rlib"]
 
 [dependencies]
 parsec-client = { git = "https://github.com/ionut-arm/parsec-client-rust", branch = "attested-tls"}
